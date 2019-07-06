@@ -1,0 +1,78 @@
+* nginx-s3-proxy
+
+This is an nginx configuration of a reverse proxy to an S3-compatible
+backend, such as [[https://aws.amazon.com/s3/][AWS S3]] itself, [[https://min.io/][Minio]] or [[https://wasabi.com/][Wasabi]].
+
+It can function as an HTTP(S) caching node, typically useful for
+serving static web sites.
+
+It compiles nginx from source adding [[https://github.com/anomalizer/ngx_aws_auth][ngx_aws_auth]] and
+[[https://github.com/openresty/headers-more-nginx-module][ngx_headers_more]] modules, and enables some useful built-in ones. Take
+a look at the [[Dockerfile]].
+
+
+** Usage
+
+1. Clone this repo. Read, confirm or tweak the opinionated settings in
+[[src/nginx.conf.tmpl]].
+
+2. [@2] Create a ~secrets.env~ file in the repo root directory with the contents:
+
+#+BEGIN_SRC shell
+NGINX_S3_SERVER_NAME=<your server name, e.g. example.com>
+NGINX_S3_PROXY_URL=<URL of the S3 server, see examples below>
+NGINX_S3_ACCESS_KEY=<e.g. 1AMZ56N0NL6X032ZMLW7>
+NGINX_S3_SECRET_KEY=<e.g. Ig1SxVgistQ4W3nwwG0CsFy6l9ua485o9rh0fxGY>
+NGINX_S3_BUCKET=<your S3 bucket name>
+#+END_SRC
+
+~NGINX_S3_PROXY_URL~ for AWS S3 could be
+~http://$BUCKET_NAME.s3-website-us-east-1.amazonaws.com/~, and for
+Wasabi ~https://s3.us-east-1.wasabisys.com/$BUCKET_NAME/~.
+
+3. [@3] Install [[https://podman.io/][Podman]] (or use [[https://www.docker.com/][Docker]] or another [[https://www.opencontainers.org/][OCI]]-compatible tool), and run:
+
+#+BEGIN_SRC shell
+make image
+#+END_SRC
+
+This should build an OCI image named ~imiric/nginx-s3-proxy~ and
+tagged ~latest~.
+
+Alternatively, you can control the tag by setting the ~VERSION~
+environment variable. For example:
+
+#+BEGIN_SRC shell
+export VERSION=$(date +'%Y%m%d_%H%M%S'); make image
+#+END_SRC
+
+4. [@4] Then run a container with:
+
+#+BEGIN_SRC shell
+make NAME=<your server name> run
+#+END_SRC
+
+This should mount your ~secrets.env~ as a volume, generate the
+~/etc/nginx/nginx.conf~ file, and start ~nginx~ exposed to the host
+machine at ~127.0.0.1:8000~.
+
+This is useful during development and testing, but in production run:
+
+#+BEGIN_SRC shell
+sudo make ENV=prod NAME=<your server name> run
+#+END_SRC
+
+This should do as before, with also mounting the ~/etc/ssl~ and
+~/etc/letsencrypt~ host directories.
+
+Root permission is needed for binding to ports <=1024, which this does
+at ~0.0.0.0:80~ and ~0.0.0.0:443~.
+
+Handling SSL certificates is not part of this setup yet, but will be
+added eventually. For now the configuration assumes certificates are
+managed externally using [[https://letsencrypt.org/][Let's Encrypt]] tooling.
+
+
+** License
+
+[[LICENSE][ISC]]
