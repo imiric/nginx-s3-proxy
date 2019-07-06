@@ -1,0 +1,145 @@
+user nginx;
+worker_processes auto;
+pid /run/nginx.pid;
+
+error_log stderr;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format apm '$time_iso8601 client=$remote_addr '
+                   'request="$request" cache_status="$upstream_cache_status" '
+                   'status=$status bytes_in=$request_length bytes_out=$bytes_sent '
+                   'referer=$http_referer user_agent="$http_user_agent" '
+                   'upstream_addr=$upstream_addr upstream_status=$upstream_status '
+                   'request_time=$request_time '
+                   'upstream_response_time=$upstream_response_time '
+                   'upstream_connect_time=$upstream_connect_time '
+                   'upstream_header_time=$upstream_header_time';
+
+    access_log /dev/stdout apm;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    types_hash_max_size 2048;
+    server_names_hash_bucket_size 64;
+
+    # Don't advertise server name/version in responses
+    server_tokens off;
+    more_clear_headers Server;
+
+    # Limit request size
+    client_body_buffer_size 1K;
+    client_header_buffer_size 1k;
+    client_max_body_size 1k;
+    large_client_header_buffers 2 1k;
+
+    # Sane connection timeouts
+    client_body_timeout 10;
+    client_header_timeout 10;
+    keepalive_timeout 5 5;
+    send_timeout 10;
+
+    # Limit amount of concurrent connections from a single IP
+    limit_conn_zone $binary_remote_addr zone=addr:10m;
+    limit_conn addr 5;
+
+    gzip on;
+    gzip_disable "msie6";
+    gzip_http_version 1.1;
+    gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+
+    proxy_cache_lock on;
+    proxy_cache_lock_timeout 60s;
+    proxy_cache_path /var/cache/nginx levels=1:2 keys_zone=s3cache:10m max_size=100m inactive=1d;
+
+    map $uri $custom_content_type {
+        default                      'text/html; charset=utf-8';
+        ~/(pgp|ssh|robots\.txt|\.well-known/.*)$ 'text/plain; charset=utf-8';
+        ~*\.(svg|svgz)$              'image/svg+xml; charset=utf-8';
+    }
+
+    server {
+        listen 80;
+        listen [::]:80;
+
+        server_name imiric.com www.imiric.com;
+
+        return 301 https://$server_name$request_uri;
+    }
+
+    server {
+        listen 443 ssl;
+        listen [::]:443 ssl;
+
+        server_name imiric.com www.imiric.com;
+        error_page 403 404 /404.html;
+
+        ssl_certificate /etc/letsencrypt/www.imiric.com/www.imiric.com.crt;
+        ssl_certificate_key /etc/letsencrypt/www.imiric.com/www.imiric.com.key;
+        ssl_protocols TLSv1.2 TLSv1.3;
+        ssl_ciphers EECDH+AESGCM:EDH+AESGCM;
+        ssl_prefer_server_ciphers on;
+        ssl_session_timeout 10m;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_tickets off;
+        ssl_stapling on;
+        ssl_stapling_verify on;
+        ssl_dhparam /etc/ssl/dhparam.pem;
+        ssl_ecdh_curve secp384r1;
+
+        # Let's Encrypt ACME verification - enable only when generating certs
+        #location /.well-known/acme-challenge/ {
+        #    alias /usr/share/nginx/acme-challenge/;
+        #    try_files $uri =404;
+        #}
+
+        location = / {
+            rewrite ^/$ ${uri}index.html last;
+        }
+
+        location / {
+            proxy_pass ${NGINX_S3_PROXY_URL};
+            proxy_intercept_errors on;
+            max_ranges 0;
+            # Only allow GET and HEAD requests
+            limit_except GET { deny all; }
+
+            aws_access_key ${NGINX_S3_ACCESS_KEY};
+            aws_secret_key ${NGINX_S3_SECRET_KEY};
+            s3_bucket ${NGINX_S3_BUCKET};
+
+            proxy_cache s3cache;
+            proxy_cache_valid 200 301 302 1h;
+
+            proxy_set_header Authorization $s3_auth_token;
+            proxy_set_header x-amz-date $aws_date;
+
+            proxy_ignore_headers Cache-Control;
+            more_clear_headers 'x-amz-*' Set-Cookie Content-Type;
+
+            # HSTS: one month first to see if anything breaks, then a year with preload.
+            # See https://www.tunetheweb.com/blog/dangerous-web-security-features/ and
+            # https://hstspreload.org/
+            add_header Strict-Transport-Security "max-age=2592000; includeSubDomains" always;
+            #add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload" always;
+
+            add_header X-Frame-Options "DENY";
+            add_header X-Content-Type-Options "nosniff";
+            add_header X-XSS-Protection "1; mode=block";
+            add_header Content-Type $custom_content_type;
+        }
+
+        location = /404.html {
+            root /usr/share/nginx/html;
+            internal;
+        }
+
+        location = /gpg {
+            return 301 https://$server_name/pgp;
+        }
+    }
+}
