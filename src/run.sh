@@ -14,6 +14,11 @@ if [ -n "${LETSENCRYPT-}" ]; then
     log "Enabled /.well-known/acme-challenge endpoint"
 fi
 
+if [ "${ENV-dev}" = "prod" ]; then
+    sed -i '/#-START-TLS-CONFIG/,/#-END-TLS-CONFIG/ s/^#//g' /etc/nginx/nginx.conf.tmpl
+    log "Enabled TLS configuration"
+fi
+
 # Create nginx.conf from template file and secrets file mounted at runtime
 env $(paste "$SECRETS_FILE") \
     envsubst "$(printf '${%s} ' $(cut -d= -f1 "$SECRETS_FILE"))" \

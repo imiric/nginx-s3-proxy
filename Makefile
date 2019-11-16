@@ -26,7 +26,7 @@ ifdef LETSENCRYPT
 endif
 
 ifeq ($(ENV), prod)
-	RUNARGS := $(RUNARGS) $(RUNARGS_TLS) \
+	RUNARGS := $(RUNARGS) $(RUNARGS_TLS) -e ENV=prod \
 		-p '0.0.0.0:80:80' -p '0.0.0.0:443:443' --network=host
 else
 	RUNARGS := $(RUNARGS) -p '127.0.0.1:8000:80'

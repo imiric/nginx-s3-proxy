@@ -68,34 +68,37 @@ http {
 
         server_name imiric.com www.imiric.com;
 
-        return 301 https://$server_name$request_uri;
-    }
-
-    server {
-        listen 443 ssl;
-        listen [::]:443 ssl;
-
-        server_name imiric.com www.imiric.com;
-        error_page 403 404 /404.html;
-
-        ssl_certificate /etc/letsencrypt/www.imiric.com/www.imiric.com.crt;
-        ssl_certificate_key /etc/letsencrypt/www.imiric.com/www.imiric.com.key;
-        ssl_protocols TLSv1.2 TLSv1.3;
-        ssl_ciphers EECDH+AESGCM:EDH+AESGCM;
-        ssl_prefer_server_ciphers on;
-        ssl_session_timeout 10m;
-        ssl_session_cache shared:SSL:10m;
-        ssl_session_tickets off;
-        ssl_stapling on;
-        ssl_stapling_verify on;
-        ssl_dhparam /etc/ssl/dhparam.pem;
-        ssl_ecdh_curve secp384r1;
+#        #-START-TLS-CONFIG
+#        return 301 https://$server_name$request_uri;
+#    }
+#
+#    server {
+#        listen 443 ssl;
+#        listen [::]:443 ssl;
+#
+#        server_name imiric.com www.imiric.com;
+#
+#        ssl_certificate /etc/letsencrypt/www.imiric.com/www.imiric.com.crt;
+#        ssl_certificate_key /etc/letsencrypt/www.imiric.com/www.imiric.com.key;
+#        ssl_protocols TLSv1.2 TLSv1.3;
+#        ssl_ciphers EECDH+AESGCM:EDH+AESGCM;
+#        ssl_prefer_server_ciphers on;
+#        ssl_session_timeout 10m;
+#        ssl_session_cache shared:SSL:10m;
+#        ssl_session_tickets off;
+#        ssl_stapling on;
+#        ssl_stapling_verify on;
+#        ssl_dhparam /etc/ssl/dhparam.pem;
+#        ssl_ecdh_curve secp384r1;
+#        #-END-TLS-CONFIG
 
         # Let's Encrypt ACME verification - enable only when generating certs
         #location /.well-known/acme-challenge/ {
         #    alias /usr/share/nginx/acme-challenge/;
         #    try_files $uri =404;
         #}
+
+        error_page 403 404 /404.html;
 
         location = / {
             rewrite ^/$ ${uri}index.html last;
