@@ -1,9 +1,11 @@
-FROM alpine:3.9 as build
+ARG ALPINE_VERSION=3.10
+
+FROM alpine:${ALPINE_VERSION} as build
 LABEL maintainer="Ivan Mirić <ivan@imiric.com>"
 
 WORKDIR /build
 
-ARG NGINX_VERSION=1.16.0
+ARG NGINX_VERSION=1.16.1
 RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 	&& CONFIG="\
 		--prefix=/etc/nginx \
@@ -104,7 +106,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 	&& apk del .build-deps
 
 
-FROM alpine:3.9 as prod
+FROM alpine:${ALPINE_VERSION} as prod
 LABEL maintainer="Ivan Mirić <ivan@imiric.com>"
 
 COPY --from=build /usr/lib/nginx /usr/lib/nginx
