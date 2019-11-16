@@ -13,7 +13,8 @@ VERSION ?= latest
 ifeq ($(ENV), prod)
 	RUNARGS := -p '0.0.0.0:80:80' -p '0.0.0.0:443:443' \
 		-v /etc/letsencrypt:/etc/letsencrypt:ro \
-		-v /etc/ssl/dhparam.pem:/etc/ssl/dhparam.pem:ro
+		-v /etc/ssl/dhparam.pem:/etc/ssl/dhparam.pem:ro \
+		--network=host
 else
 	RUNARGS := -p '127.0.0.1:8000:80'
 endif
