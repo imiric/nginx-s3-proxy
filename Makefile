@@ -34,7 +34,7 @@ endif
 
 .PHONY: image
 image:
-	podman build -t imiric/$(IMAGE):$(VERSION) .
+	podman build --target prod -t imiric/$(IMAGE):$(VERSION) .
 
 .PHONY: image-letsencrypt
 image-letsencrypt:
