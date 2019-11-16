@@ -3,7 +3,7 @@ set -euo pipefail
 
 SECRETS_FILE=${1-/run/secrets/secrets.env}
 
-function log {
+log() {
     echo "$(date -Iseconds) event=\"$*\""
 }
 
