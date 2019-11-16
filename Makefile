@@ -26,6 +26,6 @@ image:
 
 .PHONY: run
 run:
-	podman run --rm -it --name $(NAME) \
+	podman run -d --name $(NAME) \
 		-v $(CURDIR)/secrets.env:/run/secrets/secrets.env \
 		$(RUNARGS) imiric/nginx-s3-proxy:$(VERSION)
