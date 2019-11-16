@@ -17,7 +17,6 @@ a look at the [[Dockerfile]].
 [[src/nginx.conf.tmpl]].
 
 2. [@2] Create a ~secrets.env~ file in the repo root directory with the contents:
-
 #+BEGIN_SRC shell
 NGINX_S3_SERVER_NAME=<your server name, e.g. example.com>
 NGINX_S3_PROXY_URL=<URL of the S3 server, see examples below>
@@ -31,7 +30,6 @@ NGINX_S3_BUCKET=<your S3 bucket name>
 Wasabi ~https://s3.us-east-1.wasabisys.com/$BUCKET_NAME/~.
 
 3. [@3] Install [[https://podman.io/][Podman]] (or use [[https://www.docker.com/][Docker]] or another [[https://www.opencontainers.org/][OCI]]-compatible tool), and run:
-
 #+BEGIN_SRC shell
 make image
 #+END_SRC
@@ -41,36 +39,82 @@ tagged ~latest~.
 
 Alternatively, you can control the tag by setting the ~VERSION~
 environment variable. For example:
-
 #+BEGIN_SRC shell
 export VERSION=$(date +'%Y%m%d_%H%M%S'); make image
 #+END_SRC
 
 4. [@4] Then run a container with:
-
 #+BEGIN_SRC shell
-make NAME=<your server name> run
+make DEBUG=1 run NAME=<your server name>
 #+END_SRC
 
-This should mount your ~secrets.env~ as a volume, generate the
-~/etc/nginx/nginx.conf~ file, and start ~nginx~ exposed to the host
-machine at ~127.0.0.1:8000~.
+This should start the container in the foreground, mount the
+~secrets.env~ file as a volume, generate the ~/etc/nginx/nginx.conf~ file,
+and start ~nginx~ exposed to the host machine at ~127.0.0.1:8000~.
 
 This is useful during development and testing, but in production run:
-
 #+BEGIN_SRC shell
-sudo make ENV=prod NAME=<your server name> run
+sudo -E make ENV=prod run NAME=<your server name>
 #+END_SRC
 
-This should do as before, with also mounting the ~/etc/ssl~ and
-~/etc/letsencrypt~ host directories.
+This should do as before, except running the container as a daemon,
+and also mounting the ~/etc/ssl~ and ~/etc/letsencrypt~ host directories.
 
 Root permission is needed for binding to ports <=1024, which this does
 at ~0.0.0.0:80~ and ~0.0.0.0:443~.
 
-Handling SSL certificates is not part of this setup yet, but will be
-added eventually. For now the configuration assumes certificates are
-managed externally using [[https://letsencrypt.org/][Let's Encrypt]] tooling.
+~sudo -E~ is used to pass environment variables to the root ~podman~ process.
+This is handy if you previously ran ~export VERSION=$(date +'%Y%m%d_%H%M%S')~
+as all commands should build/use the same image version.
+
+
+*** Renewing TLS certificate
+
+There's basic support for automating renewals of TLS certificates using
+[[https://letsencrypt.org/][Let's Encrypt]] and [[https://github.com/diafygi/acme-tiny][acme-tiny]].
+
+1. First build the ~*-letsencrypt~ image variant:
+#+BEGIN_SRC shell
+make LETSENCRYPT=1 image-letsencrypt
+#+END_SRC
+
+The reason a separate image is used for Let's Encrypt is to avoid bundling LE
+dependencies in the production image, and to avoid exposing the
+~/.well-known/acme-challenge/~ endpoint, which is only needed during renewal.
+
+2. [@2] Ensure that the existing container serving on ~:80~ and ~:443~ is stopped:
+#+BEGIN_SRC shell
+sudo podman stop <your server name>
+#+END_SRC
+
+3. [@3] Run the ~*-letsencrypt~ image variant:
+#+BEGIN_SRC shell
+sudo -E make DEBUG=1 LETSENCRYPT=1 ENV=prod run NAME=tls-renew
+#+END_SRC
+
+NOTE: We built the image in step 1 without ~sudo~ to reduce the amount
+of damage a hostile build script could do, but the image won't be
+available to ~root~ with this approach, and Podman will attempt to
+fetch it from a public registry. If you trust the build process go
+ahead and use ~sudo~ for building as well, but the author prefers to
+build rootless, transfer the image to the production environment
+via SSH and load it with ~cat image.tar | sudo podman load~.
+In "proper" production you might want to push to a centralized
+registry instead. Feel free to use the approach that best works for
+you, but image deployment is out of scope for this project.
+
+4. [@4] Run the TLS renewal script:
+#+BEGIN_SRC shell
+sudo podman exec -it tls-renew ./renew-tls-cert.sh <your server name>
+#+END_SRC
+
+If everything goes according to plan, you should see some ~acme-tiny~ output
+and a message indicating that the certificate was renewed successfully. \o/
+
+5. [@5] Finally, exit the ~tls-renew~ container with Ctrl+C or
+~sudo podman stop tls-renew~, and restart the original production
+container with ~sudo podman restart <your server name>~ or recreate it
+with ~sudo -E make ENV=prod run NAME=<your server name>~.
 
 
 ** License

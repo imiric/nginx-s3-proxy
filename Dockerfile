@@ -104,7 +104,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 	&& apk del .build-deps
 
 
-FROM registry.hub.docker.com/library/alpine:3.9
+FROM registry.hub.docker.com/library/alpine:3.9 as prod
 LABEL maintainer="Ivan Mirić <ivan@imiric.com>"
 
 COPY --from=build /usr/lib/nginx /usr/lib/nginx
@@ -150,3 +150,19 @@ EXPOSE 80 443
 STOPSIGNAL SIGTERM
 
 ENTRYPOINT ["/usr/local/bin/run.sh"]
+
+
+FROM prod as letsencrypt
+
+RUN apk add --no-cache git openssl python3
+
+WORKDIR /root
+
+RUN git clone https://github.com/diafygi/acme-tiny.git
+
+WORKDIR /root/acme-tiny
+
+COPY src/renew-tls-cert.sh .
+
+
+FROM prod
