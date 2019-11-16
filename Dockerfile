@@ -1,4 +1,4 @@
-FROM registry.hub.docker.com/library/alpine:3.9 as build
+FROM alpine:3.9 as build
 LABEL maintainer="Ivan Mirić <ivan@imiric.com>"
 
 WORKDIR /build
@@ -104,7 +104,7 @@ RUN GPG_KEYS=B0F4253373F8F6F510D42178520A9993A1C052F8 \
 	&& apk del .build-deps
 
 
-FROM registry.hub.docker.com/library/alpine:3.9 as prod
+FROM alpine:3.9 as prod
 LABEL maintainer="Ivan Mirić <ivan@imiric.com>"
 
 COPY --from=build /usr/lib/nginx /usr/lib/nginx
