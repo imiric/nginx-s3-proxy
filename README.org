@@ -16,7 +16,23 @@ a look at the [[Dockerfile]].
 1. Clone this repo. Read, confirm or tweak the opinionated settings in
 [[src/nginx.conf.tmpl]].
 
-2. [@2] Create a ~secrets.env~ file in the repo root directory with the contents:
+2. [@2] Install [[https://podman.io/][Podman]] (or directly use [[https://www.docker.com/][Docker]]
+   or another [[https://www.opencontainers.org/][OCI]]-compatible tool) and run:
+#+BEGIN_SRC shell
+make image
+#+END_SRC
+
+This should build a Podman image named ~imiric/nginx-s3-proxy~ and tagged
+~latest~.
+
+You can control the tag by setting the ~VERSION~ environment variable. For
+example:
+#+BEGIN_SRC shell
+export VERSION=$(date +'%Y%m%d_%H%M%S'); make image
+#+END_SRC
+
+3. [@3] To run a container, first create a ~secrets.env~ file in the repo root
+   directory with the contents:
 #+BEGIN_SRC shell
 NGINX_S3_SERVER_NAME=<your server name, e.g. example.com>
 NGINX_S3_PROXY_URL=<URL of the S3 server, see examples below>
@@ -28,20 +44,6 @@ NGINX_S3_BUCKET=<your S3 bucket name>
 ~NGINX_S3_PROXY_URL~ for AWS S3 could be
 ~http://$BUCKET_NAME.s3-website-us-east-1.amazonaws.com/~, and for
 Wasabi ~https://s3.us-east-1.wasabisys.com/$BUCKET_NAME/~.
-
-3. [@3] Install [[https://podman.io/][Podman]] (or use [[https://www.docker.com/][Docker]] or another [[https://www.opencontainers.org/][OCI]]-compatible tool), and run:
-#+BEGIN_SRC shell
-make image
-#+END_SRC
-
-This should build an OCI image named ~imiric/nginx-s3-proxy~ and
-tagged ~latest~.
-
-Alternatively, you can control the tag by setting the ~VERSION~
-environment variable. For example:
-#+BEGIN_SRC shell
-export VERSION=$(date +'%Y%m%d_%H%M%S'); make image
-#+END_SRC
 
 4. [@4] Then run a container with:
 #+BEGIN_SRC shell
@@ -57,8 +59,8 @@ This is useful during development and testing, but in production run:
 sudo -E make ENV=prod run NAME=<your server name>
 #+END_SRC
 
-This should do as before, except running the container as a daemon,
-and also mounting the ~/etc/ssl~ and ~/etc/letsencrypt~ host directories.
+This should do as before, except run the container in the background
+and also mount the ~/etc/ssl~ and ~/etc/letsencrypt~ host directories.
 
 Root permission is needed for binding to ports <=1024, which this does
 at ~0.0.0.0:80~ and ~0.0.0.0:443~.
@@ -108,8 +110,12 @@ you, but image deployment is out of scope for this project.
 sudo podman exec -it tls-renew ./renew-tls-cert.sh <your server name>
 #+END_SRC
 
-If everything goes according to plan, you should see some ~acme-tiny~ output
-and a message indicating that the certificate was renewed successfully. \o/
+If everything goes well, you should see some ~acme-tiny~ output and the
+last two lines should be:
+#+BEGIN_SRC shell
+Signing certificate...
+Certificate signed!
+#+END_SRC
 
 5. [@5] Finally, exit the ~tls-renew~ container with Ctrl+C or
 ~sudo podman stop tls-renew~, and restart the original production
