@@ -7,13 +7,14 @@ SHELL := bash
 .SUFFIXES:
 
 
-NAME        ?= nginx-s3-proxy
-IMAGE       := nginx-s3-proxy
-IMAGE_LE    := $(IMAGE)-letsencrypt
-VERSION     ?= latest
-RUNARGS     := -d --name $(NAME)
-RUNARGS_TLS := -v /etc/letsencrypt:/etc/letsencrypt:ro \
-               -v /etc/ssl/dhparam.pem:/etc/ssl/dhparam.pem:ro
+NAME         ?= nginx-s3-proxy
+IMAGE        := nginx-s3-proxy
+IMAGE_LE     := $(IMAGE)-letsencrypt
+VERSION      ?= latest
+BUILD_TARGET := prod
+RUNARGS      := -d --name $(NAME)
+RUNARGS_TLS  := -v /etc/letsencrypt:/etc/letsencrypt:ro \
+                -v /etc/ssl/dhparam.pem:/etc/ssl/dhparam.pem:ro
 
 ifdef DEBUG
 	RUNARGS := -it --rm --name $(NAME)
@@ -21,6 +22,7 @@ endif
 
 ifdef LETSENCRYPT
 	IMAGE := $(IMAGE_LE)
+	BUILD_TARGET := letsencrypt
 	RUNARGS_TLS := $(subst letsencrypt:ro,letsencrypt:rw,$(RUNARGS_TLS))
 	RUNARGS := $(RUNARGS) -e LETSENCRYPT=1
 endif
@@ -34,12 +36,7 @@ endif
 
 .PHONY: image
 image:
-	podman build --target prod -t imiric/$(IMAGE):$(VERSION) .
-
-.PHONY: image-letsencrypt
-image-letsencrypt:
-	test $(LETSENCRYPT)
-	podman build --target letsencrypt -t imiric/$(IMAGE):$(VERSION) .
+	podman build --target $(BUILD_TARGET) -t imiric/$(IMAGE):$(VERSION) .
 
 .PHONY: run
 run:

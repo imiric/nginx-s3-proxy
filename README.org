@@ -75,7 +75,7 @@ There's basic support for automating renewals of TLS certificates using
 
 1. First build the ~*-letsencrypt~ image variant:
 #+BEGIN_SRC shell
-make LETSENCRYPT=1 image-letsencrypt
+make LETSENCRYPT=1 image
 #+END_SRC
 
 The reason a separate image is used for Let's Encrypt is to avoid bundling LE
